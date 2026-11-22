@@ -551,6 +551,10 @@ async function mapa() {
   let img = new Image(); img.src = `${dim[0]}.png`;
   await img.decode().catch(() => {});
   let s = 1, ox = 0, oy = 0, chunks = false, rato = null;
+  // As imagens abaixo pedem desenho ao carregar, e uma pode chegar enquanto a funcao ainda espera os dados: ate o
+  // primeiro desenho, o pedido fica para ele.
+  let pronto = false;
+  const redesenha = () => { if (pronto) desenha(); };
   // Antes das imagens abaixo, que pedem desenho ao carregar. Quanto tempo cada chunk teve gente por perto, em minutos ([x, z, min] em chunks). So vem com as posicoes ligadas.
   const calor = {};
   for (const [d] of prontos) {
@@ -563,16 +567,16 @@ async function mapa() {
   let caveiras = false;
   const p = await dadosPlacar;
   const todas = (p ? p.jogadores : []).filter(j => j.saiu && j.saiu.x != null)
-    .map(j => { const img = new Image(); img.crossOrigin = "anonymous"; img.src = cabeca(j.nick); img.onload = () => desenha(); return { x: j.saiu.x, z: j.saiu.z, dim: j.saiu.dimensao, nick: j.nick || j.uuid.slice(0, 8), img }; });
+    .map(j => { const img = new Image(); img.crossOrigin = "anonymous"; img.src = cabeca(j.nick); img.onload = () => redesenha(); return { x: j.saiu.x, z: j.saiu.z, dim: j.saiu.dimensao, nick: j.nick || j.uuid.slice(0, 8), img }; });
   let cabecas = todas.filter(c => c.dim === dim[2]);
   // Vilas (um sino cada) e portais acesos de cada dimensao, quando a Action gerou.
   const marcas = {};
   for (const [d] of prontos) marcas[d[0]] = await pega(`${d[0]}-pontos.json`) || {};
-  const sino = new Image(); sino.src = svg("sino"); sino.onload = () => desenha();
-  const portal = new Image(); portal.src = svg("portal"); portal.onload = () => desenha();
+  const sino = new Image(); sino.src = svg("sino"); sino.onload = () => redesenha();
+  const portal = new Image(); portal.src = svg("portal"); portal.onload = () => redesenha();
   const pontos = () => [...(marcas[dim[0]].vilas || []).map(v => ({ ...v, img: sino, nome: "Vila" })),
     ...(marcas[dim[0]].portais || []).map(v => ({ ...v, img: portal, nome: `Portal do Nether (y ${v.y})` }))];
-  const caveira = new Image(); caveira.src = svg("caveira"); caveira.onload = () => desenha();
+  const caveira = new Image(); caveira.src = svg("caveira"); caveira.onload = () => redesenha();
   const mortesAqui = () => obitos.filter(o => o.dimensao === dim[2]);
   const ctx = cv.getContext("2d");
   const desenha = () => {
@@ -651,6 +655,7 @@ async function mapa() {
     const n = Math.min(40, Math.max(0.1, s * f));
     ox = cx - (cx - ox) * (n / s); oy = cy - (cy - oy) * (n / s); s = n; desenha();
   };
+  pronto = true;
   centra();
   if (prontos.length > 1) {
     const ctl = document.querySelector(".controles"), abas = [];
